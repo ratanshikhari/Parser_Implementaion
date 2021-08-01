@@ -17,23 +17,39 @@ public class Tokenizer {
         }
     }
 
-    public class Token {                            // Token class to hold tokens
-        public final int token;
-        public final String sequence;
-
-        public Token(int token, String sequence){   // Constructor of Token class
-            super();
-            this.token = token;
-            this.sequence = sequence;
-        }
-    }
                                                     // Declaration of LinkedList
     private LinkedList<TokenInfo> tokenInfos;
     private LinkedList<Token> tokens;
+    private static Tokenizer expressionTokenizer = null;
 
     public Tokenizer() {                            // Constructor of class Tokenizer
         tokenInfos = new LinkedList<TokenInfo>();   // Initialising of Linked list for TokenInfo
         tokens = new LinkedList<Token>();           // Initialising of Linked list for Tokens
+    }
+
+    public static Tokenizer getExpressionTokenizer() {
+        if (expressionTokenizer == null)
+            expressionTokenizer = createExpressionTokenizer();
+        return expressionTokenizer;
+    }
+
+    private static Tokenizer createExpressionTokenizer()
+    {
+        Tokenizer tokenizer = new Tokenizer();
+
+        tokenizer.addRegEx("[+-]", Token.PLUSMINUS);
+        tokenizer.addRegEx("[*/]", Token.MULTIDIV);
+        tokenizer.addRegEx("\\^", Token.RAISED);
+
+        String funcs = FunctionExpressionNode.getAllFunctions();
+        tokenizer.addRegEx("(" + funcs + ")(?!\\w)", Token.FUNCTION);
+
+        tokenizer.addRegEx("\\(", Token.OPEN_BRACKET);
+        tokenizer.addRegEx("\\)", Token.CLOSE_BRACKET);
+        tokenizer.addRegEx("(?:\\d+\\.?|\\.\\d)\\d*(?:[Ee][-+]?\\d+)?", Token.NUMBER);
+        tokenizer.addRegEx("[a-zA-Z]\\w*", Token.VARIABLE);
+
+        return tokenizer;
     }
 
     public void addRegEx(String regex, int token){       // Adding regex and token to the LinkedList tokenInfos
@@ -49,34 +65,29 @@ public class Tokenizer {
     // TOKENIZE METHOD
 
     public void tokenize(String str){
-        String s = new String(str);
+        String s = str.trim();
+        int totalLength = s.length();
         tokens.clear();
-       // try {
-            while (!s.equals("")) {
-                boolean match = false;
+        while (!s.equals("")) {
+            int remaining = s.length();
+            boolean match = false;
 
-                for (TokenInfo info : tokenInfos) {
-                    Matcher m = info.regex.matcher(s);
-                    if (m.find()) {
-                        match = true;
+            for (TokenInfo info : tokenInfos) {
+                Matcher m = info.regex.matcher(s);
+                if (m.find()) {
+                    match = true;
 
-                        String tok = m.group().trim();
-                        Token objectToken = new Token(info.token, tok);
-                        tokens.add(objectToken);
+                    String tok = m.group().trim();
+                    Token objectToken = new Token(info.token, tok, totalLength - remaining);
+                    tokens.add(objectToken);
 
-                        s = m.replaceFirst("").trim();
-                        break;
-                    }
+                    s = m.replaceFirst("").trim();
+                    break;
                 }
-
-                if (!match) throw new ParserException("Unexpected character in the input: " + s);
-                    //System.out.println("Unexpected character in input: " + s);
             }
-        //}
 
-        //catch (ParserConfigurationException e) {
-         //   System.out.println(e.getMessage());
-        //}
+            if (!match) throw new ParserException("Unexpected character in the input: " + s);
+        }
     }
 
 
@@ -85,32 +96,5 @@ public class Tokenizer {
     public LinkedList<Token> getTokens() {
         return tokens;
     }
-
-
-    //MAIN METHOD
-
-    public static void main(String[] args){
-        Tokenizer tokenizer = new Tokenizer();                      // Object of Tokenizer class
-        tokenizer.addRegEx("sin|cos|exp|ln|sqrt",1);         // Grammar for functions
-        tokenizer.addRegEx("\\(",2);                         // Grammar for open brackets
-        tokenizer.addRegEx("\\)",3);                         // Grammar for close brackets
-        tokenizer.addRegEx("[+-]",4);                        // Grammar for plus or minus
-        tokenizer.addRegEx("[*/]",5);                        // Grammar for multiplication or division
-        tokenizer.addRegEx("\\^",6);                         // Grammar for raised numbers
-        tokenizer.addRegEx("[0-9]+",7);                      // Grammar for accepting integer numbers
-        tokenizer.addRegEx("[a-z][a-zA-Z0-9_]*",8);       // Grammar for accepting variables
-        try {
-            tokenizer.tokenize("var_a + (5)");
-
-            for (Tokenizer.Token tok : tokenizer.getTokens()) {
-                System.out.println(tok.sequence + " -> " + tok.token);
-            }
-        }
-        catch (ParserException e){
-            System.out.println(e.getMessage());
-        }
-    }
-
 }
 
-// int sin;
